@@ -1,0 +1,5 @@
+*~
+ff_key3db_dump
+*.o
+*.a
+*.so.0
