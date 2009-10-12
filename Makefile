@@ -6,7 +6,7 @@ LDFLAGS=-Wl,-rpath,/usr/lib/nss -Wl,-rpath,/usr/lib/nspr -Wl,--rpath -Wl,/usr/lo
 
 all:
 	cd ini && make
-	gcc -g -Iini -I/usr/include/nss -I/usr/include/nspr -c ff_key3db_dump.c
+	gcc -Iini -I/usr/include/nss -I/usr/include/nspr -c ff_key3db_dump.c
 	gcc  $(LDFLAGS) -o ff_key3db_dump ff_key3db_dump.o  -lnspr4 -lnss3 -lsqlite3 -liniparser
 #	gcc -o ff_key3db_dump -I/usr/include/nss -I/usr/include/nspr  $(LDFLAGS) ff_key3db_dump.c
 

@@ -4,8 +4,8 @@
 
 # Compiler settings
 CC      = gcc
-#CFLAGS  = -O2 -fPIC -Wall -ansi -pedantic
-CFLAGS  = -g -Wall
+CFLAGS  = -O2 -fPIC -Wall -ansi -pedantic
+#CFLAGS  = -g -Wall
 
 # Ar settings to build the library
 AR	    = ar
