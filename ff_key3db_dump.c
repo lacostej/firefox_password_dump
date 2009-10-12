@@ -1,17 +1,44 @@
 /* http://fz-corp.net/?p=199*/ 
-#include "sqlite3.h"
 
 #ifdef UNICODE
 #undef UNICODE
 #endif
 
+// this isn't the proper way to do it, but I added this to hopefully allow the app to work on both Windows and Linux
+#define LINUX
+
+#ifdef LINUX
+#define MAX_PATH        300
+#endif /* LINUX */
+
+
+#ifndef LINUX
 #define _CRT_SECURE_NO_WARNINGS
+#endif /* LINUX */
 
 #include <stdio.h>
+
+#ifndef LINUX
 #include <windows.h>
 #include <shlobj.h>
+#else
+#include <stdlib.h>
+#include <string.h>
+#include "sqlite3.h"
+#include "pk11pub.h"
+#include "nssb64.h"
+#include "pk11sdr.h"
+#include "iniparser.h"
+#endif /* LINUX */
 
- 
+#ifdef LINUX
+char* pathSeparator = "/";
+#define TRUE PR_TRUE
+#else
+char* pathSeparator = "\\";
+#endif /*LINUX*/
+
+#ifndef LINUX
 typedef enum {
     siBuffer,
     siClearDataBuffer,
@@ -38,6 +65,7 @@ typedef enum {
 } SECStatus;
  
 typedef struct SECItemStr SECItem;
+
  
 typedef SECStatus (*NSSInit)(char *);
 typedef void *(*PK11GetInternalKeySlot)();
@@ -56,8 +84,10 @@ PK11Authenticate PK11_Authenticate;
 PK11CheckUserPassword PK11_CheckUserPassword;
 NSSShutdown NSS_Shutdown;
 PK11FreeSlot PK11_FreeSlot;
+#endif /* LINUX */
  
 int loadFirefoxLibraries() {
+#ifndef LINUX
         char pathFirefox[MAX_PATH];
         char pathDll[MAX_PATH];
         HMODULE moduleNSS;
@@ -105,29 +135,50 @@ int loadFirefoxLibraries() {
         PK11_CheckUserPassword = (PK11CheckUserPassword)GetProcAddress(moduleNSS, "PK11_CheckUserPassword");
         NSS_Shutdown = (NSSShutdown)GetProcAddress(moduleNSS, "NSS_Shutdown");
         PK11_FreeSlot = (PK11FreeSlot)GetProcAddress(moduleNSS, "PK11_FreeSlot");
- 
+#endif /* LINUX */
         return 0;
 }
+
  
 void PK11Decrypt(char *cipheredBuffer, char **plaintext) {
-        SECItem request;
-        SECItem reply;
+        SECItem * request; 
+        SECItem * reply;
         unsigned int len = strlen(cipheredBuffer);
+
+        reply = SECITEM_AllocItem(NULL, NULL, 0);
  
-        request.data = cipheredBuffer;
-        request.len = len;
-        reply.data = 0;
-        reply.len = 0;
+        request = NSSBase64_DecodeBuffer(NULL, NULL, cipheredBuffer, len);
+        PK11SDR_Decrypt(request, reply, NULL);
  
-        NSSBase64_DecodeBuffer(NULL, &request, cipheredBuffer, len);
-        PK11SDR_Decrypt(&request, &reply, NULL);
- 
-        reply.data[reply.len] = 0;
- 
-        *plaintext = malloc(reply.len + 1);
-        strcpy(*plaintext, reply.data);
+        *plaintext = malloc(reply->len + 1);
+         strncpy(*plaintext, reply->data, reply->len);
+        (*plaintext)[reply->len] = '\0';
+
+        SECITEM_FreeItem(request, TRUE);
+        SECITEM_FreeItem(reply, TRUE);
 }
- 
+
+int get_profile(char* pathProfilesIni, char* profile)
+{
+#ifdef LINUX
+       dictionary * ini;
+       ini = iniparser_load(pathProfilesIni);
+       if (ini==NULL) {
+               fprintf(stderr, "cannot parse file: %s\n", pathProfilesIni);
+               return -1;
+       }
+       char * s = iniparser_getstring(ini, "Profile0:Path", NULL);
+       int length = strlen(s);
+       strncpy(profile, s, length + 1);
+
+       iniparser_freedict(ini);
+#else
+        GetPrivateProfileString("Profile0", "Path", "", profile, MAX_PATH, pathProfilesIni);
+#endif /* LINUX */
+
+//        printf("Found profile2 path: %s\n", profile);
+        return 0;
+}
  
 int main(int argc, char **argv) {
         sqlite3 *db;
@@ -145,14 +196,29 @@ int main(int argc, char **argv) {
                 fflush(stderr);
                 return 1;
         }
-       
+
+#ifndef  LINUX
         SHGetSpecialFolderPath(0, pathFirefoxData, CSIDL_APPDATA, FALSE);       
         strcat(pathFirefoxData, "\\Mozilla\\Firefox");
         sprintf(pathProfilesIni, "%s\\profiles.ini", pathFirefoxData);
-        GetPrivateProfileString("Profile0", "Path", "", profile, MAX_PATH, pathProfilesIni);
-        sprintf(pathProfile, "%s\\%s", pathFirefoxData, profile);
-        sprintf(pathSignons, "%s\\signons.sqlite", pathProfile);
-       
+#else
+        char * home = getenv("HOME");
+        sprintf(pathFirefoxData, "%s/.mozilla/firefox", home);
+        sprintf(pathProfilesIni, "%s/profiles.ini", pathFirefoxData);
+#endif /* LINUX */
+
+        get_profile(pathProfilesIni, profile);
+        sprintf(pathProfile, "%s%s%s", pathFirefoxData, pathSeparator, profile);
+        sprintf(pathSignons, "%s%ssignons.sqlite", pathProfile, pathSeparator, pathProfile);
+
+/*
+        printf("home\t%s\n", home);
+        printf("pathProfile\t%s\n", pathProfile);
+        printf("pathSignons\t%s\n", pathSignons);
+        printf("pathProfilesIni\t%s\n", pathProfilesIni);
+        printf("\n\n");
+*/
+
         if(NSS_Init(pathProfile) != SECSuccess) {
                 fprintf(stderr, "NSS_Init fails\r\n");
                 fflush(stderr);
@@ -205,8 +271,9 @@ int main(int argc, char **argv) {
  
         sqlite3_finalize(stmt); 
         sqlite3_close(db);
- 
+
         PK11_FreeSlot(keySlot);
+
         NSS_Shutdown();
        
         return 0;
