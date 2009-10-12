@@ -1,0 +1,19 @@
+This program dumps firefox password from your default profile
+
+It should work on Windows and Unix.
+
+It is a port of http://fz-corp.net/?p=199 and contain some small memory fixes.
+
+Usage:
+
+$ ff_key3db_dump
+https://www.amazon.fr,youremail,yourpassword
+....
+
+
+Dependencies:
+* sqlite3
+* nss
+* nspr
+* ini on Linux
+
