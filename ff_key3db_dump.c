@@ -256,6 +256,11 @@ int main(int argc, char **argv) {
         }
        
         while(sqlite3_step(stmt) == SQLITE_ROW) {
+                char *hostname = (char *)sqlite3_column_text(stmt, 1);
+                char *httpRealm = (char *)sqlite3_column_text(stmt, 2);
+                char *formSubmitURL = (char *)sqlite3_column_text(stmt, 3);
+                char *usernameField = (char *)sqlite3_column_text(stmt, 4);
+                char *passwordField = (char *)sqlite3_column_text(stmt, 5);
                 char *cipheredLogin = (char *)sqlite3_column_text(stmt, 6);
                 char *cipheredPassword = (char *)sqlite3_column_text(stmt, 7);
                 char *plaintextLogin, *plaintextPassword;
@@ -263,7 +268,7 @@ int main(int argc, char **argv) {
                 PK11Decrypt(cipheredLogin, &plaintextLogin);
                 PK11Decrypt(cipheredPassword, &plaintextPassword);
  
-                printf("%s,%s,%s\r\n", sqlite3_column_text(stmt, 1), plaintextLogin, plaintextPassword);
+                printf("%s,%s,%s,%s,%s,%s,%s\r\n", hostname, httpRealm, formSubmitURL, usernameField, passwordField, plaintextLogin, plaintextPassword);
  
                 free(plaintextLogin);
                 free(plaintextPassword);
