@@ -263,7 +263,7 @@ int main(int argc, char **argv) {
                 PK11Decrypt(cipheredLogin, &plaintextLogin);
                 PK11Decrypt(cipheredPassword, &plaintextPassword);
  
-                printf("%s:%s:%s\r\n", sqlite3_column_text(stmt, 1), plaintextLogin, plaintextPassword);
+                printf("%s,%s,%s\r\n", sqlite3_column_text(stmt, 1), plaintextLogin, plaintextPassword);
  
                 free(plaintextLogin);
                 free(plaintextPassword);
